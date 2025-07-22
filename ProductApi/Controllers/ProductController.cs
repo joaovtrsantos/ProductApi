@@ -1,33 +1,59 @@
 using Microsoft.AspNetCore.Mvc;
+using ProductApi.Models;
+using ProductApi.Models.Dtos;
+using ProductApi.Models.Interfaces;
 
 namespace ProductApi.Controllers
 {
     [ApiController]
     [Route("[controller]")]
-    public class ProductController : ControllerBase
+    public class ProductController(
+        ICreateProductService createProductService,
+        IGetProductsService getProductsService,
+        IGetProductByIdService getProductByIdService,
+        IUpdateProductService updateProductService,
+        IDeleteProductService deleteProductService) : ControllerBase
     {
-        private static readonly string[] Summaries = new[]
-        {
-            "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
-        };
 
-        private readonly ILogger<ProductController> _logger;
-
-        public ProductController(ILogger<ProductController> logger)
+        [HttpGet]
+        public async Task<List<Product>> Get()
         {
-            _logger = logger;
+            return await getProductsService.GetProductsAsync();
         }
 
-        [HttpGet(Name = "GetWeatherForecast")]
-        public IEnumerable<WeatherForecast> Get()
+        [HttpGet("getProductById/{productId}")]
+        public async Task<Product> GetProductById(int productId)
         {
-            return Enumerable.Range(1, 5).Select(index => new WeatherForecast
+            return await getProductByIdService.GetProductByIdAsync(productId);
+        }
+
+        [HttpPost]
+        public async Task<ActionResult<Product>> CreateProduct(CreateProductRequest createProductRequest)
+        {
+            var createdProduct = await createProductService.CreateProductAsync(createProductRequest.Name, createProductRequest.Price);
+            return createdProduct;
+        }
+
+        [HttpPut]
+        public async Task<ActionResult<Product>> UpdateProduct(UpdateProductRequest updateProductRequest)
+        {
+            var productUpdated = await updateProductService.UpdateProductAsync(updateProductRequest);
+            if (productUpdated == null || productUpdated.Id == 0)
             {
-                Date = DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
-                TemperatureC = Random.Shared.Next(-20, 55),
-                Summary = Summaries[Random.Shared.Next(Summaries.Length)]
-            })
-            .ToArray();
+                return NotFound("Product not found or update failed.");
+            }
+            return Ok(productUpdated);
+        }
+
+        [HttpDelete]
+        public async Task<ActionResult<bool>> DeleteProduct(DeleteProductRequest deleteProductReqest)
+        {
+            var result = await deleteProductService.DeleteProductAsync(deleteProductReqest);
+            if (result == false)
+            {
+                return NotFound("Product not found or delete failed.");
+            }
+            return NoContent();
         }
     }
 }
